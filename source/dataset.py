@@ -52,11 +52,11 @@ class MusicData:
     val_set = ClassData(X_val, y_val, device=self.device)
     test_set = ClassData(X_test, y_test, device=self.device)
 
-    self.train_load = DataLoader(train_set, batch_size=64,
+    self.train_load = DataLoader(train_set, batch_size=2**10,
             shuffle=True, num_workers=1)
-    self.val_load = DataLoader(val_set, batch_size=64,
+    self.val_load = DataLoader(val_set, batch_size=2**10,
             shuffle=False, num_workers=1)
-    self.test_load = DataLoader(test_set, batch_size=64,
+    self.test_load = DataLoader(test_set, batch_size=2**10,
             shuffle=False, num_workers=1)
 
   def drop_missing_values(self, X, y):
