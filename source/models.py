@@ -160,8 +160,7 @@ class MusicClassifier(torch.nn.Module):
                 mean_validation_loss.append(np.mean(validation_loss))
                 mean_val_f1.append(np.mean(val_f1))
                 writer.add_scalar("./loss/validation", mean_validation_loss[-1], epoch)
-                print(f"----Epoch: {epoch} | Train loss: {mean_train_loss[-1]} | Val loss: {mean_validation_loss[-1]}----")
-                print(f"----Epoch: {epoch} | Train F1: {mean_train_f1[-1]} | Val F1: {mean_val_f1[-1]}----")
+                print(f"----Epoch: {epoch} | Train: loss={mean_train_loss[-1]}, F1={mean_train_f1[-1]} | Val: loss={mean_validation_loss[-1]}, F1={mean_val_f1[-1]}----")
             
 
 
