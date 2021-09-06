@@ -119,7 +119,7 @@ class MusicClassifier(torch.nn.Module):
                 training_loss.append(train_loss.item())
                 train_loss.backward()
                 optimiser.step()
-                print(f"Epoch{epoch}, Batch {idx}: Train batch loss: {train_loss.item()}")
+                print(f"Model Device {self.device} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
             
             mean_train_loss.append(np.mean(training_loss))
             writer.add_scalar("./loss/train", mean_train_loss[-1], epoch)
