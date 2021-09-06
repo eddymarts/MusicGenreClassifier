@@ -8,6 +8,7 @@ class MusicClassifier(torch.nn.Module):
                 n_labels=16, n_linear_layers=4, neuron_incr=6, dropout_lin=0.5, batchnorm_lin=True, lr=0.001):
         super().__init__()
         self.lr = lr
+        self.device = torch.device("cuda:0" if cuda_available else "cpu")
         convolutional_layers, neurons = self.get_convolutional_layers(kernel, channels_incr, n_conv_layers,
                                                         stride, padding, dropout_conv, batchnorm_conv)
         linear_layers = self.get_linear_layers(neurons, n_labels, n_linear_layers,
@@ -115,6 +116,7 @@ class MusicClassifier(torch.nn.Module):
             training_loss = []
             self.train()
             for idx, (X_train, y_train) in enumerate(train_load):
+                X_train, y_train = X_train.to(self.device), y_train.to(self.device)
                 optimiser.zero_grad()
                 y_hat = self.forward(X_train)
                 torch.cuda.synchronize()
@@ -133,6 +135,7 @@ class MusicClassifier(torch.nn.Module):
                 validation_loss = []
                 self.eval() # set model in inference mode (need this because of dropout)
                 for idx, (X_val, y_val) in enumerate(val_load):
+                    X_val, y_val = X_val.to(self.device), y_val.to(self.device)
                     y_hat_val = self.forward(X_val)
                     val_loss = self.get_loss(y_hat_val, y_val)
                     validation_loss.append(val_loss.item())
@@ -165,6 +168,7 @@ class MusicClassifier(torch.nn.Module):
         """
         self.eval()
         for idx, (X_val, y_val) in enumerate(data_load):
+            X_val, y_val = X_val.to(self.device), y_val.to(self.device)
             if idx == 0:
                 y_hat_val = self(X_val)
                 y_label = y_val
