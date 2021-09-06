@@ -5,7 +5,6 @@ from torch.utils.data import *
 import pandas as pd
 import os
 import ast
-from multiprocessing import cpu_count
 
 class MusicData:
   """
@@ -54,11 +53,11 @@ class MusicData:
     test_set = ClassData(X_test, y_test, device=self.device)
 
     self.train_load = DataLoader(train_set, batch_size=64,
-            shuffle=True, num_workers=round(cpu_count()/2))
+            shuffle=True, num_workers=3)
     self.val_load = DataLoader(val_set, batch_size=64,
-            shuffle=False, num_workers=round(cpu_count()/2))
+            shuffle=False, num_workers=3)
     self.test_load = DataLoader(test_set, batch_size=64,
-            shuffle=False, num_workers=round(cpu_count()/2))
+            shuffle=False, num_workers=3)
 
   def drop_missing_values(self, X, y):
     dataset = pd.merge(X, y, left_index=True, right_index=True)

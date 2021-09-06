@@ -288,7 +288,6 @@ if __name__ == "__main__":
         device = torch.device("cuda:0" if cuda_available else "cpu")
     else:
         device = torch.device("cpu")
-    print(str(device)=="cuda:0")
 
     print(f"Cuda? {cuda}. Selected device: {device}")
 
