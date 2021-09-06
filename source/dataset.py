@@ -124,31 +124,19 @@ class ClassData(Dataset):
 
     if len(X.shape) > 1:
       self.n_features = X.shape[1]
-      if str(device) == "cuda:0":
-        self.X = torch.cuda.FloatTensor(X.reshape(-1, 1, self.n_features))
-      else:
-        self.X = torch.Tensor(X).reshape(-1, 1, self.n_features).float().to(self.device)
+      self.X = torch.Tensor(X).reshape(-1, 1, self.n_features).float().to(self.device)
       # self.X = torch.Tensor(X).float()
     else:
       self.n_features = 1
-      if str(device) == "cuda:0":
-        self.X = torch.cuda.FloatTensor(X.reshape(-1, 1, self.n_features))
-      else:
-        self.X = torch.Tensor(X.reshape(-1, 1, self.n_features)).float().to(self.device)
+      self.X = torch.Tensor(X.reshape(-1, 1, self.n_features)).float().to(self.device)
       # self.X = torch.Tensor(X.reshape(-1, self.n_features)).float()
 
     if len(y.shape) > 1:
       self.n_labels = y.shape[1]
-      if str(device) == "cuda:0":
-        self.y = torch.cuda.Tensor(y).long()
-      else:
-        self.y = torch.Tensor(y).long().to(self.device)
+      self.y = torch.Tensor(y).long().to(self.device)
     else:
       self.n_labels = 1
-      if str(device) == "cuda:0":
-        self.y = torch.cuda.Tensor(y.reshape(-1, self.n_labels)).long()
-      else:
-        self.y = torch.Tensor(y).reshape(-1, self.n_labels).long().to(self.device)
+      self.y = torch.Tensor(y).reshape(-1, self.n_labels).long().to(self.device)
 
   def __getitem__(self, idx):
     # X = self.X[idx]
