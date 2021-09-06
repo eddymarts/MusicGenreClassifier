@@ -12,7 +12,6 @@ class MusicData:
   Class that implements torch.utils.data.Dataset
   """
   def __init__(self):
-
     self.get_data()
     
   def get_data(self, subset='large'):
@@ -117,22 +116,23 @@ class ClassData(Dataset):
   """
   def __init__(self, X, y):
     super().__init__()
+    self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     if len(X.shape) > 1:
       self.n_features = X.shape[1]
-      # self.X = torch.Tensor(X).reshape(-1, 1, self.n_features).float()
-      self.X = torch.Tensor(X).float()
+      self.X = torch.Tensor(X).reshape(-1, 1, self.n_features).float().to(self.device)
+      # self.X = torch.Tensor(X).float()
     else:
       self.n_features = 1
-      # self.X = torch.Tensor(X.reshape(-1, 1, self.n_features)).float()
-      self.X = torch.Tensor(X.reshape(-1, self.n_features)).float()
+      self.X = torch.Tensor(X.reshape(-1, 1, self.n_features)).float().to(self.device)
+      # self.X = torch.Tensor(X.reshape(-1, self.n_features)).float()
 
     if len(y.shape) > 1:
       self.n_labels = y.shape[1]
-      self.y = torch.Tensor(y).long()
+      self.y = torch.Tensor(y).long().to(self.device)
     else:
       self.n_labels = 1
-      self.y = torch.Tensor(y).reshape(-1, self.n_labels).long()
+      self.y = torch.Tensor(y).reshape(-1, self.n_labels).long().to(self.device)
 
   def __getitem__(self, idx):
     # X = self.X[idx]
