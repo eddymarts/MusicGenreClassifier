@@ -2,12 +2,11 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from functools import partial
-import numpy as np
-import os
-from ray import tune
-from ray.tune import CLIReporter
-from ray.tune.schedulers import ASHAScheduler
+# from functools import partial
+# import os
+# from ray import tune
+# from ray.tune import CLIReporter
+# from ray.tune.schedulers import ASHAScheduler
 
 class MusicClassifier(torch.nn.Module):
     # def __init__(self, kernel=5, channels_incr=4, n_conv_layers=4, stride=1, padding=0, dropout_conv=0.5, batchnorm_conv=True,
@@ -206,12 +205,12 @@ if __name__ == "__main__":
     music_classifier = MusicClassifier()
     music_classifier.to(device)
     loss = music_classifier.fit(music.train_load, music.test_load, return_loss=True,
-                                epochs=1000, acceptable_error=0.0001)
+                                epochs=10, acceptable_error=0.0001)
 
     y_val, y_hat_val = music_classifier.predict(music.test_load, return_y=True)
 
     print(torch.cat((y_val, y_hat_val), dim=1)[0:10])
-    print("R^2 score:", f1_score(y_hat_val.detach().cpu().clone().numpy(), y_val.detach().cpu().clone().numpy()))
+    print("R^2 score:", f1_score(y_hat_val.detach().cpu().clone().numpy(), y_val.detach().cpu().clone().numpy(), average='weighted'))
     plt.plot(loss['training'], label="Training set loss")
     plt.plot(loss['validation'], label="Validation set loss")
     plt.xlabel(f"Epochs\nl={loss['validation'][-1]}")
