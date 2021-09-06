@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
 
 class AudioClassifier (nn.Module):
     # ----------------------------
@@ -66,86 +67,173 @@ class AudioClassifier (nn.Module):
         return x
 
 class MusicClassifier(torch.nn.Module):
-    def __init__(self, n_channels, n_conv_layers, n_features, n_labels, n_linear_layers=10, neuron_incr=10, 
-                dropout=0.5, batchnorm=False):
+    def __init__(self, kernel, n_channels, channels_incr, n_conv_layers, stride, padding, dropout_conv, batchnorm_conv,
+                n_features, n_labels, n_linear_layers=10, neuron_incr=10, dropout_lin=0.5, batchnorm_lin=False, lr=0.001):
         super().__init__()
-        convolutional_layers = self.get_convolutional_layers(n_channels, n_conv_layers, n_features)
-        linear_layers = self.get_linear_layers(n_features, n_labels, n_linear_layers,
-                                        neuron_incr, dropout, batchnorm)
+        self.lr = lr
+        convolutional_layers, neurons = self.get_convolutional_layers(kernel, n_channels, channels_incr, n_conv_layers,
+                                                        stride, padding, dropout_conv, batchnorm_conv)
+        linear_layers = self.get_linear_layers(neurons, n_labels, n_linear_layers,
+                                        neuron_incr, dropout_lin, batchnorm_lin)
         
         layers = convolutional_layers + linear_layers
         self.layers = torch.nn.Sequential(*layers)
+        
+    def __call__(self, X):
+        """
+        Predicts the value of an output for each row of X
+        using the Logistic Regression model.
+        """
+        return torch.argmax(self.forward(X), axis=1).reshape(-1, 1)
     
     def forward(self, X):
         return self.layers(X)
 
-    def get_convolutional_layers(self, n_channels, n_conv_layers, n_features):
+    def get_convolutional_layers(self, kernel, n_channels, channels_incr, n_conv_layers, stride, padding, dropout_conv, batchnorm_conv):
         current_channels = n_channels
         layers = []
 
         for layer in range(n_conv_layers):
-            if layer <= round(n_conv_layers/2):
-                next_neurons = current_channels + neuron_incr
-            else:
-                next_neurons = current_channels - neuron_incr
-
-            if batchnorm:
-                layers.append(torch.nn.BatchNorm1d(current_channels))
-
-            layers.append(torch.nn.Linear(current_channels, next_neurons))
+            # https://stackoverflow.com/questions/39691902/ordering-of-batch-normalization-and-dropout_lin
+            # -> CONV/FC -> ReLu(or other activation) -> Dropout -> BatchNorm -> CONV/FC
+            next_channels = current_channels*channels_incr
+            layers.append(torch.nn.Conv1d(current_channels, next_channels, kernel_size=kernel, stride=stride, padding=padding))
             layers.append(torch.nn.ReLU())
-            layers.append(torch.nn.Dropout(p=dropout))
-            current_channels = next_neurons
+            layers.append(torch.nn.Dropout(p=dropout_conv))
+
+            if batchnorm_conv:
+                layers.append(torch.nn.BatchNorm1d(next_channels))
+            current_channels = next_channels
+
+            # https://discuss.pytorch.org/t/linear-layer-input-neurons-number-calculation-after-conv2d/28659
+            # I - a size of input neuron,
+            # K - kernel size,
+            # P - padding,
+            # S - stride.
+
+            I = 140
+            K = kernel
+            P = padding
+            S = stride
+            neurons = ((I-K+2*P)/S + 1)
         
         print(current_channels)
 
-        if batchnorm:
-            layers.append(torch.nn.BatchNorm1d(current_channels))
-        layers.append(torch.nn.Linear(current_channels, n_labels))
-
-        return layers
+        return layers, neurons
     
-    def get_linear_layers(self, n_features, n_labels, n_linear_layers, neuron_incr, dropout, batchnorm):
+    def get_linear_layers(self, n_features, n_labels, n_linear_layers, neuron_incr, dropout_lin, batchnorm_lin):
         current_channels = n_features
         layers = []
 
         for layer in range(n_linear_layers):
-            if layer <= round(n_linear_layers/2):
-                next_neurons = current_channels + neuron_incr
-            else:
-                next_neurons = current_channels - neuron_incr
-
-            if batchnorm:
-                layers.append(torch.nn.BatchNorm1d(current_channels))
-
+            next_neurons = current_channels - neuron_incr
             layers.append(torch.nn.Linear(current_channels, next_neurons))
             layers.append(torch.nn.ReLU())
-            layers.append(torch.nn.Dropout(p=dropout))
+            layers.append(torch.nn.Dropout(p=dropout_lin))
+
+            if batchnorm_lin:
+                layers.append(torch.nn.BatchNorm1d(current_channels))
+
             current_channels = next_neurons
         
         print(current_channels)
-
-        if batchnorm:
-            layers.append(torch.nn.BatchNorm1d(current_channels))
         layers.append(torch.nn.Linear(current_channels, n_labels))
 
         return layers
 
+    def fit(self, train_load, val_load=None, optimiser=None, epochs=1000,
+            acceptable_error=0.001, return_loss=False):
+        """
+        Optimises the model parameters for the given data.
+
+        INPUTS: train_load -> torch.utils.data.DataLoader object with the data.
+                lr -> Learning Rate of Mini-batch Gradient Descent.
+                        default = 0.001.
+                epochs -> Number of iterationns of Mini-Batch Gradient Descent.
+                        default = 100
+        """
+
+        if optimiser==None:
+            optimiser = torch.optim.SGD(self.parameters(), lr=self.lr)
+
+        writer = SummaryWriter()
+
+        mean_train_loss = []
+        mean_validation_loss = []
+
+        for epoch in range(epochs):
+            training_loss = []
+            self.train()
+            for X_train, y_train in train_load:
+                optimiser.zero_grad()
+                y_hat = self.forward(X_train)
+                train_loss = self.get_loss(y_hat, y_train)
+                training_loss.append(train_loss.item())
+                train_loss.backward()
+                optimiser.step()
+            
+            mean_train_loss.append(np.mean(training_loss))
+            writer.add_scalar("./loss/train", mean_train_loss[-1], epoch)
+            
+            if val_load:
+                validation_loss = []
+                self.eval() # set model in inference mode (need this because of dropout)
+                for X_val, y_val in val_load:
+                    y_hat_val = self.forward(X_val)
+                    val_loss = self.get_loss(y_hat_val, y_val)
+                    validation_loss.append(val_loss.item())
+                mean_validation_loss.append(np.mean(validation_loss))
+                writer.add_scalar("./loss/validation", mean_validation_loss[-1], epoch)
+
+                # if epoch > 2 and (
+                #     (abs(mean_validation_loss[-2]- mean_validation_loss[-1])/mean_validation_loss[-1] < acceptable_error)
+                #     or (mean_validation_loss[-1] > mean_validation_loss[-2])):
+                #     print(f"Validation train_loss for epoch {epoch} is {mean_validation_loss[-1]}")
+                #     break
+        
+        writer.close()
+        if return_loss:
+            return {'training': mean_train_loss,
+                    'validation': mean_validation_loss}
+        
+    def predict(self, data_load, return_y=False):
+        """
+        Predicts the value of an output for each row of X
+        using the fitted model.
+
+        X is the data from data_load (DataLoader object).
+
+        Returns the predictions.
+        """
+        self.eval()
+        for idx, (X_val, y_val) in enumerate(data_load):
+            if idx == 0:
+                y_hat_val = self(X_val)
+                y_label = y_val
+            else:
+                y_hat_val = torch.cat((y_hat_val, self(X_val)), dim=0)
+                y_label = torch.cat((y_label, y_val), dim=0)
+        
+        if return_y:
+            return y_label.reshape(-1, 1), y_hat_val
+        else:
+            return y_hat_val
+
 class CustomNetBiClassification(CustomNetRegression):
     def __init__(self, n_features, n_labels, n_linear_layers=10, neuron_incr=10,
-                dropout=0.5, batchnorm=False):
+                dropout_lin=0.5, batchnorm_lin=False):
         super().__init__(n_features, n_labels, n_linear_layers=n_linear_layers,
-                neuron_incr=neuron_incr, dropout=dropout, batchnorm=batchnorm)
+                neuron_incr=neuron_incr, dropout_lin=dropout_lin, batchnorm_lin=batchnorm_lin)
         self.layers = torch.nn.ModuleList(self.get_linear_layers(n_features, n_labels, n_linear_layers,
-                                        neuron_incr, dropout, batchnorm) + [torch.nn.Sigmoid()])
+                                        neuron_incr, dropout_lin, batchnorm_lin) + [torch.nn.Sigmoid()])
 
 class CustomNetClassification(CustomNetRegression):
     def __init__(self, n_features=11, n_labels=16, n_linear_layers=10, neuron_incr=10,
-                dropout=0.5, batchnorm=False):
+                dropout_lin=0.5, batchnorm_lin=False):
         super().__init__(n_features, n_labels, n_linear_layers=n_linear_layers,
-                neuron_incr=neuron_incr, dropout=dropout, batchnorm=batchnorm)
+                neuron_incr=neuron_incr, dropout_lin=dropout_lin, batchnorm_lin=batchnorm_lin)
         self.layers = torch.nn.ModuleList(self.get_linear_layers(n_features, n_labels, n_linear_layers,
-                                        neuron_incr, dropout, batchnorm) + [torch.nn.Softmax(1)])
+                                        neuron_incr, dropout_lin, batchnorm_lin) + [torch.nn.Softmax(1)])
 
 class CNNClassifier(LogisticRegression):
     def __init__(self):
