@@ -15,8 +15,8 @@ class MusicData:
     self.get_data()
     
   def get_data(self, subset='large'):
-    tracks = self.load('content/drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/tracks.csv')
-    features = self.load('content/drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/features.csv')
+    tracks = self.load('drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/tracks.csv')
+    features = self.load('drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/features.csv')
     mask = tracks['set', 'subset'] <= subset
 
     train = tracks['set', 'split'] == 'training'
