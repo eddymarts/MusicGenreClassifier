@@ -277,7 +277,6 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from sklearn.metrics import f1_score
     print("is cuda available?", torch.cuda.is_available())
-    sgsg
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     music_classifier = MusicClassifier()
