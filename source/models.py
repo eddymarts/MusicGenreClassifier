@@ -116,7 +116,7 @@ class MusicClassifier(torch.nn.Module):
             training_loss = []
             self.train()
             for idx, (X_train, y_train) in enumerate(train_load):
-                X_train, y_train = X_train.to(self.device), y_train.to(self.device)
+                X_train, y_train = X_train.to(self.device, non_blocking=True), y_train.to(self.device, non_blocking=True)
                 optimiser.zero_grad()
                 y_hat = self.forward(X_train)
                 torch.cuda.synchronize()
@@ -135,7 +135,7 @@ class MusicClassifier(torch.nn.Module):
                 validation_loss = []
                 self.eval() # set model in inference mode (need this because of dropout)
                 for idx, (X_val, y_val) in enumerate(val_load):
-                    X_val, y_val = X_val.to(self.device), y_val.to(self.device)
+                    X_val, y_val = X_val.to(self.device, non_blocking=True), y_val.to(self.device, non_blocking=True)
                     y_hat_val = self.forward(X_val)
                     val_loss = self.get_loss(y_hat_val, y_val)
                     validation_loss.append(val_loss.item())
@@ -168,7 +168,7 @@ class MusicClassifier(torch.nn.Module):
         """
         self.eval()
         for idx, (X_val, y_val) in enumerate(data_load):
-            X_val, y_val = X_val.to(self.device), y_val.to(self.device)
+            X_val, y_val = X_val.to(self.device, non_blocking=True), y_val.to(self.device, non_blocking=True)
             if idx == 0:
                 y_hat_val = self(X_val)
                 y_label = y_val
@@ -180,106 +180,6 @@ class MusicClassifier(torch.nn.Module):
             return y_label.reshape(-1, 1), y_hat_val
         else:
             return y_hat_val
-
-# class AudioClassifier (nn.Module):
-#     # ----------------------------
-#     # Build the model architecture
-#     # ----------------------------
-#     def __init__(self):
-#         super().__init__()
-#         conv_layers = []
-
-#         # First Convolution Block with Relu and Batch Norm. Use Kaiming Initialization
-#         self.conv1 = nn.Conv2d(2, 8, kernel_size=(5, 5), stride=(2, 2), padding=(2, 2))
-#         self.relu1 = nn.ReLU()
-#         self.bn1 = nn.BatchNorm2d(8)
-#         init.kaiming_normal_(self.conv1.weight, a=0.1)
-#         self.conv1.bias.data.zero_()
-#         conv_layers += [self.conv1, self.relu1, self.bn1]
-
-#         # Second Convolution Block
-#         self.conv2 = nn.Conv2d(8, 16, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
-#         self.relu2 = nn.ReLU()
-#         self.bn2 = nn.BatchNorm2d(16)
-#         init.kaiming_normal_(self.conv2.weight, a=0.1)
-#         self.conv2.bias.data.zero_()
-#         conv_layers += [self.conv2, self.relu2, self.bn2]
-
-#         # Second Convolution Block
-#         self.conv3 = nn.Conv2d(16, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
-#         self.relu3 = nn.ReLU()
-#         self.bn3 = nn.BatchNorm2d(32)
-#         init.kaiming_normal_(self.conv3.weight, a=0.1)
-#         self.conv3.bias.data.zero_()
-#         conv_layers += [self.conv3, self.relu3, self.bn3]
-
-#         # Second Convolution Block
-#         self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
-#         self.relu4 = nn.ReLU()
-#         self.bn4 = nn.BatchNorm2d(64)
-#         init.kaiming_normal_(self.conv4.weight, a=0.1)
-#         self.conv4.bias.data.zero_()
-#         conv_layers += [self.conv4, self.relu4, self.bn4]
-
-#         # Linear Classifier
-#         self.ap = nn.AdaptiveAvgPool2d(output_size=1)
-#         self.lin = nn.Linear(in_features=64, out_features=10)
-
-#         # Wrap the Convolutional Blocks
-#         self.conv = nn.Sequential(*conv_layers)
- 
-#     # ----------------------------
-#     # Forward pass computations
-#     # ----------------------------
-#     def forward(self, x):
-#         # Run the convolutional blocks
-#         x = self.conv(x)
-
-#         # Adaptive pool and flatten for input to linear layer
-#         x = self.ap(x)
-#         x = x.view(x.shape[0], -1)
-
-#         # Linear layer
-#         x = self.lin(x)
-
-#         # Final output
-#         return x
-
-
-# class CustomNetBiClassification(CustomNetRegression):
-#     def __init__(self, n_features, n_labels, n_linear_layers=10, neuron_incr=10,
-#                 dropout_lin=0.5, batchnorm_lin=False):
-#         super().__init__(n_features, n_labels, n_linear_layers=n_linear_layers,
-#                 neuron_incr=neuron_incr, dropout_lin=dropout_lin, batchnorm_lin=batchnorm_lin)
-#         self.layers = torch.nn.ModuleList(self.get_linear_layers(n_features, n_labels, n_linear_layers,
-#                                         neuron_incr, dropout_lin, batchnorm_lin) + [torch.nn.Sigmoid()])
-
-# class CustomNetClassification(CustomNetRegression):
-#     def __init__(self, n_features=11, n_labels=16, n_linear_layers=10, neuron_incr=10,
-#                 dropout_lin=0.5, batchnorm_lin=False):
-#         super().__init__(n_features, n_labels, n_linear_layers=n_linear_layers,
-#                 neuron_incr=neuron_incr, dropout_lin=dropout_lin, batchnorm_lin=batchnorm_lin)
-#         self.layers = torch.nn.ModuleList(self.get_linear_layers(n_features, n_labels, n_linear_layers,
-#                                         neuron_incr, dropout_lin, batchnorm_lin) + [torch.nn.Softmax(1)])
-
-# class CNNClassifier(LogisticRegression):
-#     def __init__(self):
-#         super().__init__(1, 1)
-#         self.layers = torch.nn.Sequential(
-#             torch.nn.Conv2d(1, 10, kernel_size=5),
-#             torch.nn.MaxPool2d(2),
-#             torch.nn.ReLU(),
-#             torch.nn.Conv2d(10, 20, kernel_size=5),
-#             torch.nn.Dropout(),
-#             torch.nn.MaxPool2d(2),
-#             torch.nn.ReLU(),
-#             torch.nn.Flatten(),
-#             torch.nn.Linear(320, 50),
-#             torch.nn.ReLU(),
-#             torch.nn.Dropout(),
-#             torch.nn.Linear(50, 10),
-#             torch.nn.LogSoftmax(1)
-#         )
 
 if __name__ == "__main__":
     from dataset import MusicData
@@ -295,7 +195,7 @@ if __name__ == "__main__":
 
     print(f"Cuda? {cuda}. Selected device: {device}")
 
-    music = MusicData(device=device)
+    music = MusicData()
     music_classifier = MusicClassifier()
     music_classifier.to(device)
     loss = music_classifier.fit(music.train_load, music.test_load, return_loss=True,
