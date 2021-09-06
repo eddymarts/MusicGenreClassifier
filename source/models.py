@@ -119,36 +119,47 @@ class MusicClassifier(torch.nn.Module):
 
         mean_train_loss = []
         mean_validation_loss = []
+        mean_train_f1 = []
+        mean_val_f1 = []
         print("Learning rate = ", self.lr)
 
         for epoch in range(epochs):
             training_loss = []
+            train_f1 = []
             self.train()
             for idx, (X_train, y_train) in enumerate(train_load):
                 X_train, y_train = X_train.to(self.device, non_blocking=True), y_train.to(self.device, non_blocking=True)
                 optimiser.zero_grad()
                 y_hat = self.forward(X_train)
                 train_loss = self.get_loss(y_hat, y_train)
+                t_f1 = f1_score(y_hat.detach().cpu().clone().numpy(), y_train.detach().cpu().clone().numpy(), average='weighted')
                 training_loss.append(train_loss.item())
+                train_f1.append(t_f1)
                 train_loss.backward()
                 optimiser.step()
                 # print(f"Model on cuda? {next(self.parameters()).is_cuda} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
             
             mean_train_loss.append(np.mean(training_loss))
+            mean_train_f1.append(np.mean(train_f1))
             writer.add_scalar("./loss/train", mean_train_loss[-1], epoch)
             
             if val_load:
                 validation_loss = []
+                val_f1 = []
                 self.eval() # set model in inference mode (need this because of dropout)
                 for idx, (X_val, y_val) in enumerate(val_load):
                     X_val, y_val = X_val.to(self.device, non_blocking=True), y_val.to(self.device, non_blocking=True)
                     y_hat_val = self.forward(X_val)
                     val_loss = self.get_loss(y_hat_val, y_val)
+                    v_f1 = f1_score(y_hat_val.detach().cpu().clone().numpy(), y_val.detach().cpu().clone().numpy(), average='weighted')
                     validation_loss.append(val_loss.item())
+                    val_f1.append(v_f1)
                     # print(f"Epoch{epoch}, Batch {idx}: Val batch loss: {val_loss.item()}")
                 mean_validation_loss.append(np.mean(validation_loss))
+                mean_val_f1.append(np.mean(val_f1))
                 writer.add_scalar("./loss/validation", mean_validation_loss[-1], epoch)
                 print(f"----Epoch: {epoch} | Train loss: {mean_train_loss[-1]} | Val loss: {mean_validation_loss[-1]}----")
+                print(f"----Epoch: {epoch} | Train F1: {mean_train_f1[-1]} | Val F1: {mean_val_f1[-1]}----")
             
 
 
@@ -205,7 +216,7 @@ if __name__ == "__main__":
     music_classifier = MusicClassifier()
     music_classifier.to(device)
     loss = music_classifier.fit(music.train_load, music.test_load, return_loss=True,
-                                epochs=10, acceptable_error=0.0001)
+                                epochs=100, acceptable_error=0.0001)
 
     y_val, y_hat_val = music_classifier.predict(music.test_load, return_y=True)
 
