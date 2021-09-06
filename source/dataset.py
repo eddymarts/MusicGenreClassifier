@@ -11,7 +11,8 @@ class MusicData:
   """
   Class that implements torch.utils.data.Dataset
   """
-  def __init__(self):
+  def __init__(self, device=torch.device("cpu")):
+    self.device = device
     self.get_data()
     
   def get_data(self, subset='large'):
@@ -48,9 +49,9 @@ class MusicData:
     y_val = encoder.transform(y_val)
     y_test = encoder.transform(y_test)
 
-    train_set = ClassData(X_train, y_train)
-    val_set = ClassData(X_val, y_val)
-    test_set = ClassData(X_test, y_test)
+    train_set = ClassData(X_train, y_train, device=self.device)
+    val_set = ClassData(X_val, y_val, device=self.device)
+    test_set = ClassData(X_test, y_test, device=self.device)
 
     self.train_load = DataLoader(train_set, batch_size=64,
             shuffle=True, num_workers=round(cpu_count()/2))
@@ -118,9 +119,9 @@ class ClassData(Dataset):
   """
   Class that implements torch.utils.data.Dataset
   """
-  def __init__(self, X, y):
+  def __init__(self, X, y, device=torch.device("cpu")):
     super().__init__()
-    self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    self.device = device
 
     if len(X.shape) > 1:
       self.n_features = X.shape[1]
