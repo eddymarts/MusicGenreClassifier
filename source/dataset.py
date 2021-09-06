@@ -120,10 +120,10 @@ class ClassData(Dataset):
 
     if len(X.shape) > 1:
       self.n_features = X.shape[1]
-      self.X = torch.Tensor(X).float()
+      self.X = torch.Tensor(X).reshape(-1, 1, self.n_features).float()
     else:
       self.n_features = 1
-      self.X = torch.Tensor(X.reshape(-1, self.n_features)).float()
+      self.X = torch.Tensor(X.reshape(-1, 1, self.n_features)).float()
 
     if len(y.shape) > 1:
       self.n_labels = y.shape[1]
@@ -133,7 +133,9 @@ class ClassData(Dataset):
       self.y = torch.Tensor(y).reshape(-1, self.n_labels).long()
 
   def __getitem__(self, idx):
-    return self.X[idx], self.y[idx]
+    X = self.X[idx]
+    X = torch.cat([X, X])
+    return X, self.y[idx]
 
   def __len__(self):
       return len(self.X)
