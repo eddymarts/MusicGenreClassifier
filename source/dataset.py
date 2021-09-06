@@ -124,11 +124,11 @@ class ClassData(Dataset):
 
     if len(X.shape) > 1:
       self.n_features = X.shape[1]
-      self.X = torch.Tensor(X).reshape(-1, 1, self.n_features).float().to(self.device)
+      self.X = torch.Tensor(X).reshape(-1, self.n_features).float().to(self.device)
       # self.X = torch.Tensor(X).float()
     else:
       self.n_features = 1
-      self.X = torch.Tensor(X.reshape(-1, 1, self.n_features)).float().to(self.device)
+      self.X = torch.Tensor(X.reshape(-1, self.n_features)).float().to(self.device)
       # self.X = torch.Tensor(X.reshape(-1, self.n_features)).float()
 
     if len(y.shape) > 1:

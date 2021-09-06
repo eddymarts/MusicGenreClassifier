@@ -2,19 +2,30 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+from functools import partial
+import numpy as np
+import os
+from ray import tune
+from ray.tune import CLIReporter
+from ray.tune.schedulers import ASHAScheduler
 
 class MusicClassifier(torch.nn.Module):
-    def __init__(self, kernel=5, channels_incr=4, n_conv_layers=4, stride=1, padding=0, dropout_conv=0.5, batchnorm_conv=True,
-                n_labels=16, n_linear_layers=4, neuron_incr=6, dropout_lin=0.5, batchnorm_lin=True, lr=0.001):
+    # def __init__(self, kernel=5, channels_incr=4, n_conv_layers=4, stride=1, padding=0, dropout_conv=0.5, batchnorm_conv=True,
+    #             n_labels=16, n_linear_layers=10, neuron_incr=12, dropout_lin=0.5, batchnorm_lin=True, lr=0.1):
+    def __init__(self, n_linear_layers=10, neuron_incr=12, dropout_lin=0.5, batchnorm_lin=True, lr=0.1):
         super().__init__()
         self.lr = lr
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
-        convolutional_layers, neurons = self.get_convolutional_layers(kernel, channels_incr, n_conv_layers,
-                                                        stride, padding, dropout_conv, batchnorm_conv)
-        linear_layers = self.get_linear_layers(neurons, n_labels, n_linear_layers,
+        # convolutional_layers, neurons = self.get_convolutional_layers(kernel, channels_incr, n_conv_layers,
+        #                                                 stride, padding, dropout_conv, batchnorm_conv)
+        # linear_layers = self.get_linear_layers(neurons, n_labels, n_linear_layers,
+        #                                 neuron_incr, dropout_lin, batchnorm_lin)
+        
+        # layers = convolutional_layers + [torch.nn.Flatten()] + linear_layers + [torch.nn.Softmax(1)]
+        linear_layers = self.get_linear_layers(140, 16, n_linear_layers,
                                         neuron_incr, dropout_lin, batchnorm_lin)
         
-        layers = convolutional_layers + [torch.nn.Flatten()] + linear_layers + [torch.nn.Softmax(1)]
+        layers = linear_layers + [torch.nn.Softmax(1)]
         self.layers = torch.nn.Sequential(*layers)
         # self.layers = torch.nn.ModuleList(layers)
 
@@ -26,8 +37,6 @@ class MusicClassifier(torch.nn.Module):
         return torch.argmax(self.forward(X), axis=1).reshape(-1, 1)
     
     def forward(self, X):
-        torch.cuda.synchronize()
-        print(X.device)
         return self.layers(X)
         # for idx, layer in enumerate(self.layers):
         #     print(f"Forward layer {idx}: Shape of data {X.shape}")
@@ -77,7 +86,7 @@ class MusicClassifier(torch.nn.Module):
         layers = []
 
         for layer in range(n_linear_layers):
-            next_neurons = int(round(current_neurons/neuron_incr))
+            next_neurons = int(round(current_neurons-neuron_incr))
             print(f"Linear layer {layer}: in neurons: {current_neurons} | out neurons: {next_neurons}")
             layers.append(torch.nn.Linear(current_neurons, next_neurons))
             layers.append(torch.nn.ReLU())
@@ -111,6 +120,7 @@ class MusicClassifier(torch.nn.Module):
 
         mean_train_loss = []
         mean_validation_loss = []
+        print("Learning rate = ", self.lr)
 
         for epoch in range(epochs):
             training_loss = []
@@ -119,14 +129,11 @@ class MusicClassifier(torch.nn.Module):
                 X_train, y_train = X_train.to(self.device, non_blocking=True), y_train.to(self.device, non_blocking=True)
                 optimiser.zero_grad()
                 y_hat = self.forward(X_train)
-                torch.cuda.synchronize()
                 train_loss = self.get_loss(y_hat, y_train)
                 training_loss.append(train_loss.item())
-                torch.cuda.synchronize()
                 train_loss.backward()
-                torch.cuda.synchronize()
                 optimiser.step()
-                print(f"Model on cuda? {next(self.parameters()).is_cuda} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
+                # print(f"Model on cuda? {next(self.parameters()).is_cuda} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
             
             mean_train_loss.append(np.mean(training_loss))
             writer.add_scalar("./loss/train", mean_train_loss[-1], epoch)
@@ -139,7 +146,7 @@ class MusicClassifier(torch.nn.Module):
                     y_hat_val = self.forward(X_val)
                     val_loss = self.get_loss(y_hat_val, y_val)
                     validation_loss.append(val_loss.item())
-                    print(f"Epoch{epoch}, Batch {idx}: Val batch loss: {val_loss.item()}")
+                    # print(f"Epoch{epoch}, Batch {idx}: Val batch loss: {val_loss.item()}")
                 mean_validation_loss.append(np.mean(validation_loss))
                 writer.add_scalar("./loss/validation", mean_validation_loss[-1], epoch)
                 print(f"----Epoch: {epoch} | Train loss: {mean_train_loss[-1]} | Val loss: {mean_validation_loss[-1]}----")
@@ -199,12 +206,12 @@ if __name__ == "__main__":
     music_classifier = MusicClassifier()
     music_classifier.to(device)
     loss = music_classifier.fit(music.train_load, music.test_load, return_loss=True,
-                                epochs=10, acceptable_error=0.0001)
+                                epochs=1000, acceptable_error=0.0001)
 
     y_val, y_hat_val = music_classifier.predict(music.test_load, return_y=True)
 
     print(torch.cat((y_val, y_hat_val), dim=1)[0:10])
-    print("R^2 score:", f1_score(y_hat_val.detach().numpy(), y_val.detach().numpy()))
+    print("R^2 score:", f1_score(y_hat_val.detach().cpu().clone().numpy(), y_val.detach().cpu().clone().numpy()))
     plt.plot(loss['training'], label="Training set loss")
     plt.plot(loss['validation'], label="Validation set loss")
     plt.xlabel(f"Epochs\nl={loss['validation'][-1]}")
