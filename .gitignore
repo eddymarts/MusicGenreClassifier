@@ -129,5 +129,8 @@ dmypy.json
 .pyre/
 
 # Datasets and results
-*.txt
 *.csv
+runs/
+
+# References
+*references*
