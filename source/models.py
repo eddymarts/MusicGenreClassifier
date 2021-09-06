@@ -58,7 +58,7 @@ class MusicClassifier(torch.nn.Module):
             # https://stackoverflow.com/questions/39691902/ordering-of-batch-normalization-and-dropout_lin
             # -> CONV/FC -> ReLu(or other activation) -> Dropout -> BatchNorm -> CONV/FC
             next_channels = current_channels*channels_incr
-            print(f"Convolutional layer {layer}: in channels: {current_channels} | out channels: {next_channels} | neurons: {neurons}")
+            print(f"Convolutional layer {layer}: neurons: {neurons} | in channels: {current_channels} | out channels: {next_channels}")
             layers.append(torch.nn.Conv1d(current_channels, next_channels, kernel_size=kernel, stride=stride, padding=padding))
             layers.append(torch.nn.ReLU())
             layers.append(torch.nn.Dropout(p=dropout_conv))
@@ -119,7 +119,7 @@ class MusicClassifier(torch.nn.Module):
                 training_loss.append(train_loss.item())
                 train_loss.backward()
                 optimiser.step()
-                print(f"Model Device {self.device} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
+                print(f"Model on cuda? {next(self.parameters()).is_cuda} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
             
             mean_train_loss.append(np.mean(training_loss))
             writer.add_scalar("./loss/train", mean_train_loss[-1], epoch)
