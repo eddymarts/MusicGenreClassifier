@@ -280,13 +280,16 @@ if __name__ == "__main__":
     from dataset import MusicData
     import matplotlib.pyplot as plt
     from sklearn.metrics import f1_score
-    print("is cuda available?", torch.cuda.is_available())
     cuda = False
+    cuda_available = torch.cuda.is_available()
+
     if cuda:
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0" if cuda_available else "cpu")
     else:
         device = torch.device("cpu")
-        
+
+    print(f"Cuda? {cuda}. Selected device: {device}")
+
     music = MusicData()
     music_classifier = MusicClassifier()
     music_classifier.to(device)
