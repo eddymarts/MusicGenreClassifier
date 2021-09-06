@@ -291,7 +291,7 @@ if __name__ == "__main__":
 
     print(f"Cuda? {cuda}. Selected device: {device}")
 
-    music = MusicData()
+    music = MusicData(device=device)
     music_classifier = MusicClassifier()
     music_classifier.to(device)
     loss = music_classifier.fit(music.train_load, music.test_load, return_loss=True,
