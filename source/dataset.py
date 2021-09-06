@@ -15,8 +15,12 @@ class MusicData:
     self.get_data()
     
   def get_data(self, subset='large'):
-    tracks = self.load('drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/tracks.csv')
-    features = self.load('drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/features.csv')
+    if torch.cuda.is_available():
+      tracks = self.load('drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/tracks.csv')
+      features = self.load('drive/MyDrive/Profesional/AiCore/Projects/MusicGenreClassifier/source/data/features.csv')
+    else:
+      tracks = self.load('source/data/tracks.csv')
+      features = self.load('source/data/features.csv')
     mask = tracks['set', 'subset'] <= subset
 
     train = tracks['set', 'split'] == 'training'

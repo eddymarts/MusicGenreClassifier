@@ -25,6 +25,7 @@ class MusicClassifier(torch.nn.Module):
         return torch.argmax(self.forward(X), axis=1).reshape(-1, 1)
     
     def forward(self, X):
+        torch.cuda.synchronize()
         return self.layers(X)
         # for idx, layer in enumerate(self.layers):
         #     print(f"Forward layer {idx}: Shape of data {X.shape}")
@@ -115,9 +116,12 @@ class MusicClassifier(torch.nn.Module):
             for idx, (X_train, y_train) in enumerate(train_load):
                 optimiser.zero_grad()
                 y_hat = self.forward(X_train)
+                torch.cuda.synchronize()
                 train_loss = self.get_loss(y_hat, y_train)
                 training_loss.append(train_loss.item())
+                torch.cuda.synchronize()
                 train_loss.backward()
+                torch.cuda.synchronize()
                 optimiser.step()
                 print(f"Model on cuda? {next(self.parameters()).is_cuda} | Data device {X_train.device} Epoch{epoch}, | Batch {idx}: Train batch loss: {train_loss.item()}")
             
@@ -278,10 +282,9 @@ if __name__ == "__main__":
     from sklearn.metrics import f1_score
     print("is cuda available?", torch.cuda.is_available())
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+    music = MusicData()
     music_classifier = MusicClassifier()
     music_classifier.to(device)
-    music = MusicData()
     loss = music_classifier.fit(music.train_load, music.test_load, return_loss=True,
                                 epochs=10, acceptable_error=0.0001)
 
