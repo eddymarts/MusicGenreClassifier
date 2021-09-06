@@ -26,6 +26,7 @@ class MusicClassifier(torch.nn.Module):
     
     def forward(self, X):
         torch.cuda.synchronize()
+        print(X.device)
         return self.layers(X)
         # for idx, layer in enumerate(self.layers):
         #     print(f"Forward layer {idx}: Shape of data {X.shape}")
@@ -280,13 +281,14 @@ if __name__ == "__main__":
     from dataset import MusicData
     import matplotlib.pyplot as plt
     from sklearn.metrics import f1_score
-    cuda = False
+    cuda = True
     cuda_available = torch.cuda.is_available()
 
     if cuda:
         device = torch.device("cuda:0" if cuda_available else "cpu")
     else:
         device = torch.device("cpu")
+    print(str(device)=="cuda:0")
 
     print(f"Cuda? {cuda}. Selected device: {device}")
 
